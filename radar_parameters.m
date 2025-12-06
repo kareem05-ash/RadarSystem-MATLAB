@@ -1,81 +1,62 @@
-% =========================================================================
-% radar_parameters.m
-% Optimized Radar System Parameters for Pulse-Doppler Radar Simulation
-% ELC 2030 - Fall 2025
-% =========================================================================
+% --- Radar System and Signal Parameters ---
 
-function params = radar_parameters()
-    % RADAR_PARAMETERS - Define all radar system parameters
-    %
-    % Outputs:
-    %   params - Structure containing all radar parameters
-    
-    fprintf('Setting up radar parameters...\n');
-    
-    %% ==================== BASIC RADAR PARAMETERS ========================
-    params.c = 3e8;                     % Speed of light [m/s]
-    
-    %% 1. CARRIER FREQUENCY
-    params.fc = 10e9;                   % Carrier frequency [Hz] - X-band (10 GHz)
-    
-    %% 2. PULSE PARAMETERS
-    params.Tp = 2e-6;                   % Pulse width [s] - 2 microseconds
-    params.BW = 50e6;                   % Bandwidth [Hz] - 50 MHz
-    
-    %% 3. PULSE REPETITION PARAMETERS (OPTIMIZED)
-    % Target: v_max ? 100 m/s without Doppler aliasing
-    % v_max = c * PRF / (4 * fc)
-    % PRF = 4 * v_max * fc / c
-    desired_vmax = 100; % [m/s]
-    params.PRF = 4 * desired_vmax * params.fc / params.c;   % ? 13.33 kHz
-    params.PRI = 1 / params.PRF;                             % PRI from PRF
-    
-    %% 4. WAVEFORM TYPE
-    params.waveform_type = 'rectangular'; % Pulse waveform
-    
-    %% 5. NUMBER OF PULSES
-    params.N_pulses = 256;                % Pulses in one CPI (good Doppler resolution)
-    
-    %% ==================== DERIVED PARAMETERS ===========================
-    
-    %% 6. MAXIMUM UNAMBIGUOUS RANGE
-    params.R_max = params.c * params.PRI / 2;
-    
-    %% 7. MAXIMUM UNAMBIGUOUS VELOCITY (NOW CORRECT)
-    params.v_max = params.c * params.PRF / (4 * params.fc);
-    
-    %% 8. SAMPLING PARAMETERS
-    params.fs = 2 * params.BW;            % Nyquist: 2 * BW
-    params.Ts = 1 / params.fs;
-    
-    params.Ns_per_pulse = ceil(params.Tp / params.Ts);
-    params.Ns_per_PRI   = ceil(params.PRI / params.Ts);
-    
-    %% 9. RESOLUTION PARAMETERS
-    params.range_resolution   = params.c / (2 * params.BW);
-    params.doppler_resolution = params.PRF / params.N_pulses;
-    
-    %% ==================== NOISE PARAMETERS =============================
-    params.SNR_dB = 10;   % 10 dB SNR
-    
-    %% ==================== VALIDATION CHECKS ============================
-    
-    % 1) Doppler aliasing check
-    max_expected_v = 80;  % expected target max speed
-    max_expected_fd = 2 * max_expected_v * params.fc / params.c;
-    
-    if max_expected_fd > params.PRF / 2
-        warning('WARNING: Expected Doppler exceeds Nyquist. Velocity aliasing may occur.');
-    end
-    
-    % 2) Range aliasing check
-    max_target_range = 20e3;
-    if max_target_range > params.R_max
-        warning('WARNING: Target range exceeds R_max. Range aliasing may occur.');
-    end
-    
-    %% ==================== DISPLAY PARAMETERS ===========================
-    fprintf('\n=== OPTIMIZED RADAR SYSTEM PARAMETERS ===\n');
-    fprintf('Carrier Frequency (fc): %.1f GHz\n', params.fc/1e9);
-    fprintf('Pulse Width (Tp): %.2f µs\n', params.Tp*1e6);
-    fprintf('Bandwidth (BW): %.1f MHz\n', params.BW/1e6)
+% 1. Physical Constants
+c = 3e8;        % Speed of light (m/s) [cite: 13]
+
+% 2. System Requirements and Design Choices
+Fc = 77e9;      % Carrier Frequency (Hz) (76-77 GHz range) [cite: 80]
+R_max_target = 250; % Maximum required target range (m) [cite: 83]
+Delta_R_req = 0.75; % Required Range Resolution (m) [cite: 84]
+Delta_V_req = 0.5;  % Required Velocity Resolution (m/s) [cite: 85]
+SNR_dB = 10;    % Signal-to-Noise Ratio (dB) (chosen in 5-15 dB range) [cite: 90]
+
+% 3. Derived Pulse Parameters (Part a)
+% A. Range Resolution & Bandwidth (B)
+Bw = c / (2 * Delta_R_req);  % Required Bandwidth (Hz)
+clc;
+
+% Use a slightly higher bandwidth to ensure meeting the requirement:
+B = 300e6;                  % Chosen Bandwidth (300 MHz for Delta_R = 0.5m)
+Tp = 2e-6;                  % Pulse Width (s) (Choose Tp < PRI)
+S = B / Tp;                 % Chirp Slope (Hz/s) [cite: 49]
+
+% B. Range Ambiguity & Pulse Repetition Interval (PRI)
+R_max_unambig_design = R_max_target * 1.5; % Ensure comfortable margin (e.g., 1.5x)
+PRI = 2 * R_max_unambig_design / c; % Pulse Repetition Interval (s)
+% Calculated R_max_unambig:
+R_max = c * PRI / 2;        % Maximum Unambiguous Range (m) [cite: 82]
+
+% C. Velocity Ambiguity & Pulse Repetition Frequency (PRF)
+PRF = 1 / PRI;              % Pulse Repetition Frequency (Hz) [cite: 77]
+V_max = c * PRF / (4 * Fc); % Maximum Unambiguous Velocity (m/s) [cite: 82]
+
+% D. Velocity Resolution & Number of Pulses (N)
+N_pulses = c / (2 * Fc * PRI * Delta_V_req); % Required minimum number of pulses
+N_pulses = ceil(N_pulses); % Ensure N is an integer
+
+% Use a round number slightly larger than the requirement for good measure
+N_pulses = 2000;            % Chosen Number of Pulses (N)
+
+% 4. Sampling Parameters
+Fs = 2 * B;                 % Sampling Frequency (Hz) (Must be >= B)
+Ts = 1 / Fs;                % Sampling Time (s)
+N_fast_time = ceil(PRI / Ts); % Number of samples in the fast-time dimension (Range)
+Time_fast_axis = 0:Ts:(N_fast_time-1)*Ts; % Time vector for a single pulse period
+
+% 5. Calculated Axes for Plotting (Used in Part b, c, d)
+% Range Axis
+Range_fast_axis = c * Time_fast_axis / 2; % Range vector (m)
+
+% Velocity/Doppler Axis (Doppler Freq from -PRF/2 to PRF/2)
+F_d_axis = linspace(-PRF/2, PRF/2, N_pulses);
+Velocity_slow_axis = (F_d_axis * c) / (2 * Fc); % Velocity vector (m/s) [cite: 76]
+
+% 6. Display Calculated Parameters (Optional, for verification)
+fprintf('--- RADAR PARAMETER SUMMARY ---\n');
+fprintf('Carrier Freq (Fc): %.2f GHz\n', Fc/1e9);
+fprintf('Chosen Bandwidth (B): %.2f MHz (Range Res: %.2f m)\n', B/1e6, c/(2*B));
+fprintf('PRI: %.2f us, PRF: %.2f kHz\n', PRI*1e6, PRF/1e3);
+fprintf('Max Unambiguous Range (R_max): %.2f m\n', R_max);
+fprintf('Max Unambiguous Velocity (V_max): %.2f m/s\n', V_max);
+fprintf('Number of Pulses (N): %d (Velocity Res: %.4f m/s)\n', N_pulses, c/(2*Fc*PRI*N_pulses));
+fprintf('Sampling Freq (Fs): %.2f MHz, Fast Time Samples: %d\n', Fs/1e6, N_fast_time);
