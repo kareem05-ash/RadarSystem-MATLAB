@@ -80,7 +80,7 @@ end
 %% Print Summary
 %% =========================
 
-fprintf('=============== Radar Parameters Summay ===============\n');
+fprintf('=============== Radar Parameters Summary ===============\n');
 fprintf(' > fc = %.3e Hz, lambda = %.4e m\n', fc, lambda);
 fprintf(' > Bw = %.3e Hz, dR_lower_limit = %.3f m, acheived_dR = %.3f m\n', Bw, dR_req, dR);
 fprintf(' > Tp = %.3e s, slope = %.3e, tau_Rmax = %.3e s, Vmax = %.3e m/s\n', Tp, slope, tau_Rmax, Vmax);
