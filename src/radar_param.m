@@ -93,3 +93,4 @@ for k = 1:2
   fprintf(' > Range = %.1f m, Velocity = %.1f m/s\n', target(k).R, target(k).V);
   fprintf(' > tau = %.10f s, fd = %.3f Hz\n', target(k).tau, target(k).fd);
 end
+fprintf('\n========================================================\n\n');
