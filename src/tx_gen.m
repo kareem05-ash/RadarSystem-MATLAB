@@ -11,8 +11,8 @@
 %   3) 2D Data Matrix (Nfast x N)
 %   4) Continuous time-domain signal
 
-%% Load Radar Parameters
-run radar_param;
+% %% Load Radar Parameters
+% run radar_param;
 
 %% -------------------------
 %% Fast-Time Axis & LFM Chirp
