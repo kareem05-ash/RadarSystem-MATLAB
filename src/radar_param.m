@@ -42,6 +42,7 @@ Ts = 1 / fs;          % Sampling Time
 Nfast = round(Tp * fs);           % Samples per chirp
 Nmin = (PRF * c) / (2 * fc * dV); % Minimum N pulses
 N = 2^nextpow2(ceil(Nmin));       % No. of Pulses
+Npri = round(PRI * fs);             % Total samples per PRI
 
 %% -------------------------
 %% Target Parameters
