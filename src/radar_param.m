@@ -4,94 +4,73 @@
 % +201002321067
 % https://github.com/kareem05-ash
 
-%% Radar Parameters
-% This script will be called from each script
-
-%% -------------------------
 %% Core Parameters
-%% -------------------------
-fc = 76.5e9;          % Carier Frequency (Hz)
-c = 3e8;              % Speed of Light (m/s)
-lambda = c / fc;      % Wavelenth (m)
+fmin = 76e9;                % lower limit (Hz)
+fmax = 77e9;                % upper limit (Hz)
+fc = (fmin + fmax) / 2;     % carrier frequency (Hz)
+Bw = fmax - fmin;           % Bandwidth (Hz)
+c = 3e8;                    % speed of light (m/s)
+lambda = c / fc;            % carrier wavelength (m)
 
-%% -------------------------
-%% Bw, Resolution Specs
-%% -------------------------
-Bw = 1e9;             % Bandwidth (Hz)
-dR = c / (2 * Bw);    % Range Resolution (m)
-dR_req = 0.75;        % Min. Required Range Resolution (m)
-Rmax = 250;           % Maximum Range (m)
-dV = 0.5;             % Min. allowed velocity
+%% Specs Parameters
+Rmax = 250;                 % maximum range (m)
+Rmin = 0.75;                % minimum range (m)
+Vmax = 100;                 % maximum speed (m/s)
+Vmin = 0.5;                 % minimum speed (m/s)
 
-
-%% -------------------------
 %% Timing Parameters
-%% -------------------------
-Tp = 1e-6;            % Chirp time (s)
-PRI = 1.10 * ((2 * Rmax) / c);    % Pulse Repeatition Interval
-PRF = 1 / PRI;        % Pulse Repeatition Frequency
-Vmax = (c * PRF) / (4 * fc);      % Max. Unambiguous Velocity
-tau_Rmax = (2 * Rmax) / c;        % Max. Round Trip Delay
-slope = Bw / Tp;      % Chirp Slope
+Tch = 2.1e-6;               % chirp duaration (s)
+s = Bw / Tch;               % chirp frequency slope (Hz/s)
+RTTmax = (2 * Rmax) / c;    % maximum round trip time (s)
+Tw = RTTmax / 4;            % windo time (s)
 
-%% -------------------------
-%% Sampling Parameters
-%% -------------------------
-fs = Bw;              % Sampling Frequency
-Ts = 1 / fs;          % Sampling Time
-Nfast = round(Tp * fs);           % Samples per chirp
-Nmin = (PRF * c) / (2 * fc * dV); % Minimum N pulses
-N = 2^nextpow2(ceil(Nmin));       % No. of Pulses
-Npri = round(PRI * fs);             % Total samples per PRI
+%% Fast-Axis = Sampling Parameters
+Ts = 0.5e-9;                % sampling time (s)
+fs = 1 / Ts;                % sampling rate (Hz)
+N = round(Tw / Ts);         % number of samples on the fast axis
+dfb = 1 / Tw;               % minimum beat frequency (Hz)
+dR = (c * Tch * dfb) / (2 * Bw);    % range resolution
 
-%% -------------------------
-%% Target Parameters
-%% -------------------------
-% Target(1) Parameters
-target(1).R = 50;     % Target 1: Range (m)
-target(1).V = 60;     % Target 1: Velocity (m/s) approaching
-target(1).tau = (2 * target(1).R) / c;    % Target 1: Time Shift (s)
-target(1).fd = (2 * target(1).V) / lambda;% Target 1: Doppler Phase Shift (Hz)
+%% Slow-Axis = Doppler Parameters
+PRI = 4 * Tch;              % pulse repeatition interval (s)
+PRF = 1 / PRI;              % pulse frequency
+M = 512;                    % number of chirps on the slow axis
+dfd = 1 / (M * PRI);        % minimum doppler frequency (Hz)
+dV = lambda / (2 * dfd);    % velocity resolution
 
-% Target(2) Parameters
-target(2).R = 160;    % Target 2: Range (m)
-target(2).V = -20;    % Target 2: Velocity (m/s) receding
-target(2).tau = (2 * target(2).R) / c;    % Target 2: Time Shift (s)
-target(2).fd = (2 * target(2).V) / lambda;% Target 2: Doppler Phase Shift (Hz)
-
-%% -------------------------
 %% Noise Parameters
-%% -------------------------
-SNR_dB = 10;          % SNR In dB
-SNR_lin = 10^(SNR_dB / 10);     % Linear SNR
+SNR_dB = 10;                % SNR in dB
+SNR_lin = 10^(SNR_dB/10);   % linear SNR
 
-%% =========================
-%% Targets Parameters Validation
-%% =========================
-for k = 1:2
-  if target(k).R < dR_req || target(k).R > Rmax
-    warning('Target %d range out of allowed bounds [%g, %d] m', k, dR_req, Rmax);
-  end
-  if abs(target(k).V) > 100
-    warning('Target %d velocity magnitude > 100 m/s', k);
-  end
-end
+%% Targets Parameters
+target(1).A = 1;            % amplitude of target-1
+target(1).R = 150;          % range of target-1 (m)
+target(1).V = 60;           % velocity of target-1 (m/s) [approaching]
+target(1).RTT = (2 * target(1).R) / c;      % RTT for target-1 (s)
+target(1).fd = (2 * target(1).V) / lambda;  % fd for target-1 (Hz)
 
-%% =========================
-%% Print Summary
-%% =========================
+target(2).A = 1;            % amplitude of target-2
+target(2).R = 30;           % range of target-2 (m)
+target(2).V = -70;          % velocity of target-2 (m/s) [receding]
+target(2).RTT = (2 * target(2).R) / c;      % RTT for target-2 (s)
+target(2).fd = (2 * target(2).V) / lambda;  % fd for target-2 (Hz)
 
-fprintf('=============== Radar Parameters Summary ===============\n');
-fprintf(' > fc = %.3e Hz, lambda = %.4e m\n', fc, lambda);
-fprintf(' > Bw = %.3e Hz, dR_lower_limit = %.3f m, acheived_dR = %.3f m\n', Bw, dR_req, dR);
-fprintf(' > Tp = %.3e s, slope = %.3e, tau_Rmax = %.3e s, Vmax = %.3e m/s\n', Tp, slope, tau_Rmax, Vmax);
-fprintf(' > PRI = %.3f s, PRF = %.3f Hz\n', PRI, PRF);
+%% Summary
+fprintf('\n======================================================================================\n');
+fprintf('============================== Radar Parameters Summary ==============================\n');
+fprintf('======================================================================================\n');
+fprintf(' > fc = %.2e Hz, lambda = %.4e m, Bw = %e\n', fc, lambda, Bw);
+fprintf(' > Tch = %.1e s, Tw = %.3e s, slope = %.3e, RTTmax = %.3e s\n', Tch, Tw, s, RTTmax);
+fprintf(' > M _ slow-axis _ = %d, dfd = %.3e, dV = %.3e', M, dfd, dV);
+fprintf(' > PRI = %.7f s, PRF = %.3f Hz\n', PRI, PRF);
+fprintf(' > N _ fast-axis _ = %d, dfb = %.3e, dR = %.3e', N, dfb, dR);
 fprintf(' > fs = %.3eHz, Ts = %.3e s\n', fs, Ts);
-fprintf(' > No. of Samples per Chirp = %d, No. of Samples = %d\n', Nfast, N);
 fprintf(' > SNR_dB = %g dB, SNR_lin = %.3f\n', SNR_dB, SNR_lin);
 for k = 1:2
-  fprintf(' ========== Target (%d) ==========\n', k);
-  fprintf(' > Range = %.1f m, Velocity = %.1f m/s\n', target(k).R, target(k).V);
-  fprintf(' > tau = %.10f s, fd = %.3f Hz\n', target(k).tau, target(k).fd);
+  fprintf(' ==================== Target (%d) ====================\n', k);
+  fprintf(' > Amplitude = %.1f Range = %.1f m, Velocity = %.1f m/s\n', target(k).A, target(k).R, target(k).V);
+  fprintf(' > RTT = %.7f s, fd = %.3f Hz\n', target(k).RTT, target(k).fd);
 end
-fprintf('\n========================================================\n\n');
+fprintf(' >> Rmax   = %.2f m\n', (c * PRI) / 2);
+fprintf(' >> Vmax   = %.2f m/s\n', (c * PRF) / (4 * fc));
+fprintf('======================================================================================\n');
