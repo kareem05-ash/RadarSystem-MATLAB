@@ -11,69 +11,46 @@
 %   4) Adds AWGN noise
 %   5) Generates RX signal matrix & continuous signal
 
-% %% Load Radar Parameters & TX
-% run radar_param;
-% run tx_gen;
+%% 3. RX SIGNAL GENERATION
+%% =========================================================================
+fprintf('\n========== RX SIGNAL GENERATION ==========\n');
 
-%% -------------------------
-%% Initialize RX Matrix
-%% -------------------------
-rx_mat = zeros(Npri, N);   % Received signal [Npri x N]
+num_targets = length(target);
+rx_sig = zeros(Nfast, N);
 
-%% -------------------------
-%% Loop over Targets
-%% -------------------------
-for k = 1:length(target)
-  %% Target parameters
-  tau = target(k).tau;         % Time delay
-  fd  = target(k).fd;          % Doppler frequency
-  R   = target(k).R;           % Range
-
-  %% Convert delay to samples
-  delay_samp = round(tau / Ts);
-
-  %% Attenuation (simple 1/R^2 model)
-  alpha = 1 / (R^2);
-
-  %% Doppler phase across pulses
-  doppler_phase = exp(1j * 2 * pi * fd .* t_slow);
-
-  %% Apply target effect pulse-by-pulse
-  for n = 1:N
-    if delay_samp < Npri
-      rx_mat(delay_samp+1:end, n) = ...
-        rx_mat(delay_samp+1:end, n) + ...
-        alpha * tx_mat(1:end-delay_samp, n) * doppler_phase(n);
+for m = 1:N
+    % Total time = fast time + slow time
+    t_total = t_fast + (m-1)*PRI;
+    
+    for k = 1:num_targets
+        % Target parameters
+        tau = target(k).RTT;     % Round-trip delay
+        fd  = target(k).fd;      % Doppler frequency
+        A   = target(k).A;       % Amplitude
+        
+        % Delayed time
+        t_delayed = t_fast - tau;
+        
+        % RTT-delayed FMCW chirp
+        rx_chirp = A * exp(1j * 2*pi * ...
+            (fmin * t_delayed + 0.5 * s * t_delayed.^2));
+        
+        % Enforce causality
+        rx_chirp(t_delayed < 0) = 0;
+        
+        % Doppler phase shift (slow time)
+        doppler_phase = exp(1j * 2*pi * fd * (m-1)*PRI);
+        
+        % Add this target contribution
+        rx_sig(:,m) = rx_sig(:,m) + rx_chirp * doppler_phase;
     end
-  end
 end
 
-%% -------------------------
 %% Add AWGN Noise
-%% -------------------------
-signal_power = mean(abs(rx_mat(:)).^2);
+signal_power = mean(abs(rx_sig(:)).^2);
 noise_power  = signal_power / SNR_lin;
 noise = sqrt(noise_power/2) * ...
-  (randn(size(rx_mat)) + 1j*randn(size(rx_mat)));
+    (randn(size(rx_sig)) + 1j*randn(size(rx_sig)));
+rx_sig = rx_sig + noise;
 
-rx_mat = rx_mat + noise;
-
-%% -------------------------
-%% Fast-Time Matrix (for Processing)
-%% -------------------------
-rx_fast = rx_mat(1:Nfast, :);   % [Nfast x N]
-
-%% -------------------------
-%% Continuous RX Signal
-%% -------------------------
-rx_cont = rx_mat(:);
-t_rx = (0:length(rx_cont)-1).' * Ts;
-
-%% =========================
-%% RX Summary
-%% =========================
-fprintf('\n=============== RX Generation Summary ===============\n');
-fprintf(' > Number of targets     = %d\n', length(target));
-fprintf(' > RX matrix size        = [%d x %d]\n', size(rx_mat,1), size(rx_mat,2));
-fprintf(' > RX fast-time size     = [%d x %d]\n', size(rx_fast,1), size(rx_fast,2));
-fprintf('=====================================================\n\n');
+fprintf('RX signal size: [%d x %d]\n', size(rx_sig));

@@ -3,93 +3,105 @@
 % kareem.ash05@gmail.com
 % https://github.com/kareem05-ash
 
-%% Plotting Script
-% Generates all required figures:
-% 1) Transmitted pulse (real part) vs time
-% 2) Received signal (single pulse) vs time
-% 3) Range-Time diagram
-% 4) Doppler spectrum for detected targets
-% 5) Range-Doppler map with detected targets marked
+fprintf('\n========== GENERATING PLOTS ==========\n');
 
-% %% Load Required Data
-% run radar_param;
-% run tx_gen;
-% run rx_gen;
-% run doppler_fft;
-% run detect_range;
-% run detect_velocity;
-
-%% =========================================================
-%% 1) Transmitted Pulse (Real Part) vs Time
-%% =========================================================
-figure;
-plot(t_fast * 1e6, real(tx_chirp), 'LineWidth', 1.5);
-xlabel('Time (\mus)');
-ylabel('Amplitude');
-title('Transmitted LFM Chirp (Real Part)');
+%% Plot 1: Transmitted Chirp
+figure('Name', 'TX Chirp', 'Position', [100, 100, 800, 500]);
+plot(t_fast*1e6, real(tx_chirp), 'b', 'LineWidth', 1.5);
+xlabel('Time (µs)', 'FontSize', 12);
+ylabel('Amplitude', 'FontSize', 12);
+title('Transmitted FMCW Chirp (Real Part)', 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
 
-%% =========================================================
-%% 2) Received Signal for One Pulse vs Time
-%% =========================================================
-pulse_idx = 1;   % First pulse
-figure;
-plot((0:Npri-1)*Ts*1e6, real(rx_mat(:, pulse_idx)), 'LineWidth', 1);
-xlabel('Time (\mus)');
-ylabel('Amplitude');
-title('Received Signal (Single Pulse)');
+%% Plot 2: TX vs RX Comparison
+figure('Name', 'TX-RX', 'Position', [150, 150, 800, 500]);
+plot(t_fast*1e6, real(tx_sig(:,1)), 'b', 'LineWidth', 1.5); hold on;
+plot(t_fast*1e6, real(rx_sig(:,1)), 'r', 'LineWidth', 1.5);
+legend('TX Signal', 'RX Signal', 'FontSize', 11);
+xlabel('Time (µs)', 'FontSize', 12);
+ylabel('Amplitude', 'FontSize', 12);
+title('TX vs RX Signal (First Chirp, Real Part)', 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
 
-%% =========================================================
-%% 3) Range-Time Diagram (All Pulses)
-%% =========================================================
-figure;
-imagesc((0:N-1)*PRI*1e3, range_axis, abs(rx_fast));
-xlabel('Slow Time (ms)');
-ylabel('Range (m)');
-title('Range-Time Intensity Diagram');
-axis xy;
-colorbar;
-
-%% =========================================================
-%% 4) Doppler Spectrum for Each Detected Target
-%% =========================================================
-figure;
+%% Plot 3: Range Profile with Detection
+figure('Name', 'Range Profile', 'Position', [200, 200, 800, 500]);
+plot(range_axis, 20*log10(range_profile), 'b', 'LineWidth', 1.5);
 hold on;
-for i = 1:length(range_idx)
-  r_bin = range_idx(i);
-  doppler_slice = abs(RD_map(r_bin, :));
-  plot(vel_axis, doppler_slice ./ max(doppler_slice), ...
-    'LineWidth', 1.5, ...
-    'DisplayName', sprintf('Target at R = %.1f m', range_axis(r_bin)));
+plot([0 max(range_axis)], [threshold_dB threshold_dB], 'r--', 'LineWidth', 1.5);
+if exist('detected_ranges', 'var') && ~isempty(detected_ranges)
+    for i = 1:length(detected_ranges)
+        plot(detected_ranges(i), range_profile_dB(range_idx(i)), 'ro', ...
+            'MarkerSize', 10, 'LineWidth', 2);
+    end
+    legend('Range Profile', 'Threshold', 'Detected Peaks', 'FontSize', 11);
+else
+    legend('Range Profile', 'Threshold', 'FontSize', 11);
 end
-xlabel('Velocity (m/s)');
-ylabel('Normalized Magnitude');
-title('Doppler Spectrum of Detected Targets');
-legend;
+xlabel('Range (m)', 'FontSize', 12);
+ylabel('Magnitude (dB)', 'FontSize', 12);
+title('Range Profile with Peak Detection', 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
-hold off;
+xlim([0 min(200, max(range_axis))]);
 
-%% =========================================================
-%% 5) Range-Doppler Map with Detected Targets
-%% =========================================================
-figure;
-imagesc(range_axis, vel_axis, 20*log10(abs(RD_map.')));
-xlabel('Range (m)');
-ylabel('Velocity (m/s)');
-title('Range-Doppler Map');
+%% Plot 4: Doppler Spectrum at Detected Ranges
+if exist('range_idx', 'var') && ~isempty(range_idx)
+    figure('Name', 'Doppler', 'Position', [250, 250, 800, 500]);
+    hold on;
+    colors = lines(length(range_idx));
+    for i = 1:min(5, length(range_idx))
+        r_bin = range_idx(i);
+        doppler_slice = abs(RD_map(r_bin, :));
+        plot(vel_axis, 20*log10(doppler_slice), ...
+            'LineWidth', 2, 'Color', colors(i,:), ...
+            'DisplayName', sprintf('R = %.1f m', range_axis(r_bin)));
+    end
+    xlabel('Velocity (m/s)', 'FontSize', 12);
+    ylabel('Magnitude (dB)', 'FontSize', 12);
+    title('Doppler Spectrum at Detected Ranges', 'FontSize', 14, 'FontWeight', 'bold');
+    legend('Location', 'best', 'FontSize', 11);
+    grid on;
+    xlim([-100 100]);
+end
+
+%% Plot 5: Range-Doppler Map
+figure('Name', 'RD Map', 'Position', [300, 300, 900, 600]);
+RD_dB = 20*log10(abs(RD_map) + eps);
+imagesc(vel_axis, range_axis, RD_dB);
+xlabel('Velocity (m/s)', 'FontSize', 12);
+ylabel('Range (m)', 'FontSize', 12);
+title('Range-Doppler Map with Detections', 'FontSize', 14, 'FontWeight', 'bold');
 axis xy;
-colorbar;
+h = colorbar;
+ylabel(h, 'Magnitude (dB)', 'FontSize', 11);
 colormap jet;
+noise_floor_map = median(RD_dB(:));
+caxis([noise_floor_map, max(RD_dB(:))]);
 hold on;
 
 % Mark detected targets
-for i = 1:length(range_idx)
-  for j = 1:length(vel_idx)
-    plot(range_axis(range_idx(i)), ...
-      vel_axis(vel_idx(j)), ...
-      'rx', 'MarkerSize', 10, 'LineWidth', 2);
-  end
+if exist('detected_pairs', 'var') && ~isempty(detected_pairs)
+    for i = 1:size(detected_pairs, 1)
+        plot(detected_pairs(i,2), detected_pairs(i,1), ...
+            'rx', 'MarkerSize', 15, 'LineWidth', 3);
+    end
 end
 
-hold off;
+% Mark ground truth
+for k = 1:length(target)
+    plot(target(k).V, target(k).R, 'wo', ...
+        'MarkerSize', 12, 'LineWidth', 2);
+end
+legend('Detected', 'Ground Truth', 'FontSize', 11, 'Location', 'northeast');
+xlim([-100 100]);
+ylim([0 min(200, max(range_axis))]);
+
+%% Plot 6: Beat Signal
+figure('Name', 'Beat Signal', 'Position', [350, 350, 800, 500]);
+beat_sig = tx_sig .* conj(rx_sig);
+plot(t_fast*1e6, real(beat_sig(:,1)), 'b', 'LineWidth', 1.5);
+xlabel('Time (µs)', 'FontSize', 12);
+ylabel('Amplitude', 'FontSize', 12);
+title('Beat Signal (Dechirped, First Chirp)', 'FontSize', 14, 'FontWeight', 'bold');
+grid on;
+
+fprintf('All plots generated successfully!\n\n');
