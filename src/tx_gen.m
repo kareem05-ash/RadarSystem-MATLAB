@@ -1,3 +1,8 @@
+%% Kareem Ashraf Mostafa
+%  kareem.ash05@gmail.com
+%  github.com/kareem05-ash
+
+%% =========================================================================
 %% 2. TX SIGNAL GENERATION
 %% =========================================================================
 fprintf('\n========== TX SIGNAL GENERATION ==========\n');

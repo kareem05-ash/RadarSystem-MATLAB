@@ -1,107 +1,178 @@
-%% Signature
-% Kareem Ashraf Mostafa
-% kareem.ash05@gmail.com
-% https://github.com/kareem05-ash
+%% Kareem Ashraf Mostafa
+%  kareem.ash05@gmail.com
+%  github.com/kareem05-ash
 
-fprintf('\n========== GENERATING PLOTS ==========\n');
+%% =========================================================================
+%% 8. Plot All Required Signals
+%% =========================================================================
 
-%% Plot 1: Transmitted Chirp
-figure('Name', 'TX Chirp', 'Position', [100, 100, 800, 500]);
+%% 6.1: Real Part of TX FMCW (one chirp)
+figure("Name", "TX");
 plot(t_fast*1e6, real(tx_chirp), 'b', 'LineWidth', 1.5);
-xlabel('Time (µs)', 'FontSize', 12);
-ylabel('Amplitude', 'FontSize', 12);
-title('Transmitted FMCW Chirp (Real Part)', 'FontSize', 14, 'FontWeight', 'bold');
+xlabel('Time (us)');
+ylabel('Amplitde');
+title('TX FMCW Chirp (Real Part)');
 grid on;
 
-%% Plot 2: TX vs RX Comparison
-figure('Name', 'TX-RX', 'Position', [150, 150, 800, 500]);
-plot(t_fast*1e6, real(tx_sig(:,1)), 'b', 'LineWidth', 1.5); hold on;
-plot(t_fast*1e6, real(rx_sig(:,1)), 'r', 'LineWidth', 1.5);
-legend('TX Signal', 'RX Signal', 'FontSize', 11);
-xlabel('Time (µs)', 'FontSize', 12);
-ylabel('Amplitude', 'FontSize', 12);
-title('TX vs RX Signal (First Chirp, Real Part)', 'FontSize', 14, 'FontWeight', 'bold');
+%% 6.2: Real Part of RX FMCW (one chirp) (summation of two targets)
+rx_first_chirp = rx_sig(:, 1);
+figure("Name", "RX");
+plot(t_fast*1e9, real(rx_chirp), 'b', 'LineWidth', 1.5);
+xlabel('Time (us)');
+ylabel('Amplitde');
+title('RX FMCW Chirp (Real Part)');
 grid on;
-
-%% Plot 3: Range Profile with Detection
-figure('Name', 'Range Profile', 'Position', [200, 200, 800, 500]);
-plot(range_axis, 20*log10(range_profile), 'b', 'LineWidth', 1.5);
+%% 6.3: Fast-Axis FFT (beat frequency)
+figure("Name", "FastAxis_FFT");
+plot(R_fft_half, range_fft_mag_half, 'b', 'LineWidth', 1.5);
+xlabel("Range (m)");
+ylabel("Magnitude");
+title("Fast-Axis FFT (Range Domain)");
+grid on;
+% mark peaks
 hold on;
-plot([0 max(range_axis)], [threshold_dB threshold_dB], 'r--', 'LineWidth', 1.5);
-if exist('detected_ranges', 'var') && ~isempty(detected_ranges)
-    for i = 1:length(detected_ranges)
-        plot(detected_ranges(i), range_profile_dB(range_idx(i)), 'ro', ...
-            'MarkerSize', 10, 'LineWidth', 2);
-    end
-    legend('Range Profile', 'Threshold', 'Detected Peaks', 'FontSize', 11);
-else
-    legend('Range Profile', 'Threshold', 'FontSize', 11);
+detected_ranges = [];
+for i = 1:min(2, length(peak_indices))
+  R_detected = R_fft_half(peak_indices(i));
+  f_beat_detected = fbeat_half(peak_indices(i));
+  detected_ranges = [detected_ranges, R_detected];
+  plot(R_detected, peaks(i), 'ro', 'MarkerSize', 10, 'LineWidth', 2);
+  text(R_detected, peaks(i)*1.05, ...
+    sprintf('R=%.1f m\nf_b=%.1f MHz', ...
+    R_detected, f_beat_detected/1e6), ...
+    'FontSize', 8, 'HorizontalAlignment', 'center', ...
+    'BackgroundColor', 'white');
 end
-xlabel('Range (m)', 'FontSize', 12);
-ylabel('Magnitude (dB)', 'FontSize', 12);
-title('Range Profile with Peak Detection', 'FontSize', 14, 'FontWeight', 'bold');
+% Mark expected ranges
+for k = 1:2
+  plot([target(k).R, target(k).R], [0, max(range_fft_mag_half)], ...
+    'g--', 'LineWidth', 1);
+end
+hold off;
+
+legend('Range Profile', 'Detected Peaks', 'Expected Ranges', ...
+  'Location', 'northeast', 'FontSize', 8);
+
+%% 6.4: Slow-Axis FFT (doppler frequency)
+figure("Name", "SlowAxis_FFT");
+plot(velocity, doppler_fft_mag_shifted, 'b', 'LineWidth', 1.5);
+xlabel("Velocity (m/s)");
+ylabel("Magnitude");
+title("Slow-Axis FFT (Velocity Domain)");
 grid on;
-xlim([0 min(200, max(range_axis))]);
+xlim([-100, 100]);
+% Mark peaks
+hold on;
+detected_velocities = [];
+for i = 1:min(2, length(doppler_indices))
+  v_detected = velocity(doppler_indices(i));
+  f_doppler_detected = doppler_freq(doppler_indices(i));
+  detected_velocities = [detected_velocities, v_detected];
 
-%% Plot 4: Doppler Spectrum at Detected Ranges
-if exist('range_idx', 'var') && ~isempty(range_idx)
-    figure('Name', 'Doppler', 'Position', [250, 250, 800, 500]);
-    hold on;
-    colors = lines(length(range_idx));
-    for i = 1:min(5, length(range_idx))
-        r_bin = range_idx(i);
-        doppler_slice = abs(RD_map(r_bin, :));
-        plot(vel_axis, 20*log10(doppler_slice), ...
-            'LineWidth', 2, 'Color', colors(i,:), ...
-            'DisplayName', sprintf('R = %.1f m', range_axis(r_bin)));
-    end
-    xlabel('Velocity (m/s)', 'FontSize', 12);
-    ylabel('Magnitude (dB)', 'FontSize', 12);
-    title('Doppler Spectrum at Detected Ranges', 'FontSize', 14, 'FontWeight', 'bold');
-    legend('Location', 'best', 'FontSize', 11);
-    grid on;
-    xlim([-100 100]);
+  plot(v_detected, doppler_peaks(i), 'ro', 'MarkerSize', 10, 'LineWidth', 2);
+
+  text(v_detected, doppler_peaks(i)*1.05, ...
+    sprintf('v=%.1f m/s\nf_d=%.1f kHz', ...
+    v_detected, f_doppler_detected/1e3), ...
+    'FontSize', 8, 'HorizontalAlignment', 'center', ...
+    'BackgroundColor', 'white');
 end
+% Mark expected velocities
+for k = 1:2
+  plot([target(k).V, target(k).V], [0, max(doppler_fft_mag_shifted)], ...
+    'g--', 'LineWidth', 1);
+end
+hold off;
 
-%% Plot 5: Range-Doppler Map
-figure('Name', 'RD Map', 'Position', [300, 300, 900, 600]);
-RD_dB = 20*log10(abs(RD_map) + eps);
-imagesc(vel_axis, range_axis, RD_dB);
-xlabel('Velocity (m/s)', 'FontSize', 12);
-ylabel('Range (m)', 'FontSize', 12);
-title('Range-Doppler Map with Detections', 'FontSize', 14, 'FontWeight', 'bold');
+legend('Doppler Spectrum', 'Detected Peaks', 'Expected Velocities', ...
+  'Location', 'northeast', 'FontSize', 8);
+
+%% 6.5: Range-Velocity Diagram (2D FFT)
+figure("Name", "2D");
+imagesc(velocity_axis_display, range_axis_display, 20*log10(rd_mag_display + eps));
+xlabel('Velocity (m/s)');
+ylabel('Range (m)');
+title('Range-Velocity Diagram (Range-Doppler Map)');
+colorbar;
 axis xy;
-h = colorbar;
-ylabel(h, 'Magnitude (dB)', 'FontSize', 11);
-colormap jet;
-noise_floor_map = median(RD_dB(:));
-caxis([noise_floor_map, max(RD_dB(:))]);
+colormap('jet');
+clim([-20, max(20*log10(rd_mag_display(:) + eps))]);  % Set color scale
+
+% Mark detected and expected targets
 hold on;
+for k = 1:2
+  % Plot expected target (red x)
+  plot(target(k).V, target(k).R, 'rx', ...
+    'MarkerSize', 12, 'LineWidth', 2);
 
-% Mark detected targets
-if exist('detected_pairs', 'var') && ~isempty(detected_pairs)
-    for i = 1:size(detected_pairs, 1)
-        plot(detected_pairs(i,2), detected_pairs(i,1), ...
-            'rx', 'MarkerSize', 15, 'LineWidth', 3);
-    end
+  % Plot detected target (yellow circle)
+  if k <= length(detected_targets)
+    plot(detected_targets(k).V, detected_targets(k).R, 'yo', ...
+      'MarkerSize', 10, 'LineWidth', 2, ...
+      'MarkerFaceColor', 'yellow');
+
+    % Add text label
+    text(detected_targets(k).V, detected_targets(k).R + 2, ...
+      sprintf('T%d\nR=%.1f m\nv=%.1f m/s', ...
+      k, detected_targets(k).R, detected_targets(k).V), ...
+      'FontSize', 8, 'FontWeight', 'bold', ...
+      'HorizontalAlignment', 'center', ...
+      'BackgroundColor', 'white', 'EdgeColor', 'black');
+  end
 end
-
-% Mark ground truth
-for k = 1:length(target)
-    plot(target(k).V, target(k).R, 'wo', ...
-        'MarkerSize', 12, 'LineWidth', 2);
-end
-legend('Detected', 'Ground Truth', 'FontSize', 11, 'Location', 'northeast');
-xlim([-100 100]);
-ylim([0 min(200, max(range_axis))]);
-
-%% Plot 6: Beat Signal
-figure('Name', 'Beat Signal', 'Position', [350, 350, 800, 500]);
-beat_sig = tx_sig .* conj(rx_sig);
-plot(t_fast*1e6, real(beat_sig(:,1)), 'b', 'LineWidth', 1.5);
-xlabel('Time (µs)', 'FontSize', 12);
-ylabel('Amplitude', 'FontSize', 12);
-title('Beat Signal (Dechirped, First Chirp)', 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
 
-fprintf('All plots generated successfully!\n\n');
+
+%% 4.6 Display detection results
+fprintf('\n========== DETECTION RESULTS ==========\n');
+
+fprintf('\nFrom Fast-Axis FFT (Range Profile):\n');
+for i = 1:min(2, length(peak_indices))
+  R_det = R_fft_half(peak_indices(i));
+  f_beat = fbeat_half(peak_indices(i));
+  fprintf('  Peak %d: Range = %.1f m, f_beat = %.1f MHz\n', ...
+    i, R_det, f_beat/1e6);
+
+  if i <= 2
+    R_error = abs(R_det - target(i).R);
+    fprintf('     Expected: %.1f m, Error: %.2f m (%.1f%% of resolution)\n', ...
+      target(i).R, R_error, (R_error/dR)*100);
+  end
+end
+
+fprintf('\nFrom Slow-Axis FFT (Doppler Spectrum):\n');
+for i = 1:min(2, length(doppler_indices))
+  v_det = velocity(doppler_indices(i));
+  f_det = doppler_freq(doppler_indices(i));
+  fprintf('  Peak %d: Velocity = %.1f m/s, f_doppler = %.1f kHz\n', ...
+    i, v_det, f_det/1e3);
+
+  if i <= 2
+    v_error = abs(v_det - target(i).V);
+    fprintf('     Expected: %.1f m/s, Error: %.2f m/s (%.1f%% of resolution)\n', ...
+      target(i).V, v_error, (v_error/dV)*100);
+  end
+end
+
+fprintf('\nFrom Range-Velocity Diagram:\n');
+for k = 1:min(2, length(detected_targets))
+  fprintf('  Target %d:\n', k);
+  fprintf('    Detected: Range = %.1f m, Velocity = %.1f m/s\n', ...
+    detected_targets(k).R, detected_targets(k).V);
+  fprintf('    Expected: Range = %.1f m, Velocity = %.1f m/s\n', ...
+    target(k).R, target(k).V);
+
+  R_error = abs(detected_targets(k).R - target(k).R);
+  v_error = abs(detected_targets(k).V - target(k).V);
+
+  fprintf('    Range Error: %.2f m (%.1f%% of resolution)\n', ...
+    R_error, (R_error/dR)*100);
+  fprintf('    Velocity Error: %.2f m/s (%.1f%% of resolution)\n', ...
+    v_error, (v_error/dV)*100);
+end
+
+fprintf('\n========== SUMMARY ==========\n');
+fprintf('Theoretical Range Resolution: %.3f m\n', dR);
+fprintf('Theoretical Velocity Resolution: %.3f m/s\n', dV);
+fprintf('Maximum Unambiguous Range: %.1f m\n', Rmax);
+fprintf('Maximum Unambiguous Velocity: %.1f m/s\n', Vmax);
