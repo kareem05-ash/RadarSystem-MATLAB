@@ -24,7 +24,7 @@ Vmin = 0.5;                 % Minimum speed (m/s)
 Tch = 2.1e-6;               % Chirp duration (s)
 s = Bw / Tch;               % Chirp frequency slope (Hz/s)
 RTTmax = (2 * Rmax) / c;    % Maximum round trip time (s)
-Tw = RTTmax / 4;            % Window time (s)
+Tw = Tch;            % Window time (s)
 
 %% Fast-Axis (Range) Sampling Parameters
 Ts = 0.5e-9;                % Sampling time (s)
@@ -41,19 +41,19 @@ dfd = 1 / (N * PRI);        % Minimum Doppler frequency (Hz)
 dV = (lambda * dfd) / 2;    % Velocity resolution
 
 %% Noise Parameters
-SNR_dB = 15;                % SNR in dB
+SNR_dB = 10;                % SNR in dB
 SNR_lin = 10^(SNR_dB/10);   % Linear SNR
 
 %% Target Parameters
 target(1).A = 1e-3;            % Amplitude of target-1
-target(1).R = 50;          % Range of target-1 (m)
-target(1).V = 10;           % Velocity of target-1 (m/s) [approaching]
+target(1).R = 31;           
+target(1).V = 30;             % Velocity of target-1 (m/s) [approaching]
 target(1).RTT = (2 * target(1).R) / c;      % RTT for target-1 (s)
 target(1).fd = (2 * target(1).V) / lambda;  % Doppler for target-1 (Hz)
 
 target(2).A = 1e-3;            % Amplitude of target-2
-target(2).R = 30;           % Range of target-2 (m)
-target(2).V = -70;          % Velocity of target-2 (m/s) [receding]
+target(2).R = 30;           
+target(2).V = 30;         % Velocity of target-2 (m/s) [receding]
 target(2).RTT = (2 * target(2).R) / c;      % RTT for target-2 (s)
 target(2).fd = (2 * target(2).V) / lambda;  % Doppler for target-2 (Hz)
 
