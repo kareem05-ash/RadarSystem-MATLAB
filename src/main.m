@@ -1,6 +1,5 @@
 clear; close all; clc;
 
-
 run radar_param;
 run tx_gen;
 run rx_gen;

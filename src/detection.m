@@ -15,41 +15,30 @@
   'SortStr', 'descend', 'NPeaks', 2, ...
   'MinPeakHeight', max(doppler_fft_mag_shifted)*0.1);
 
-% Look for peaks near expected target locations
-detected_targets = [];
+detected_targets = struct([]);
 
-% Search around each expected target
-for k = 1:2
-  % Find closest range bin
+for k = 1:length(target)
+  % Find nearest bins to expected target location
   [~, range_idx] = min(abs(range_axis_display - target(k).R));
-  % Find closest velocity bin
-  [~, vel_idx] = min(abs(velocity_axis_display - target(k).V));
-
-  % Search in a small window around expected location
-  search_range = 10;  % bins
-  search_vel = 10;    % bins
-
+  [~, vel_idx]   = min(abs(velocity_axis_display - target(k).V));
+  % Local search window (bins)
+  search_range = 8;
+  search_vel   = 8;
   range_start = max(1, range_idx - search_range);
-  range_end = min(length(range_axis_display), range_idx + search_range);
-  vel_start = max(1, vel_idx - search_vel);
-  vel_end = min(length(velocity_axis_display), vel_idx + search_vel);
-
-  % Extract search region
-  search_region = rd_mag_display(range_start:range_end, vel_start:vel_end);
-
-  % Find maximum in search region
+  range_end   = min(length(range_axis_display), range_idx + search_range);
+  vel_start   = max(1, vel_idx   - search_vel);
+  vel_end     = min(length(velocity_axis_display), vel_idx + search_vel);
+  % Extract local Range-Doppler region
+  search_region = rd_mag_display(range_start:range_end, ...
+    vel_start:vel_end);
+  % Find strongest peak in local region
   [max_val, max_idx] = max(search_region(:));
-  [local_range_idx, local_vel_idx] = ind2sub(size(search_region), max_idx);
-
+  [local_r, local_v] = ind2sub(size(search_region), max_idx);
   % Convert to global indices
-  global_range_idx = range_start + local_range_idx - 1;
-  global_vel_idx = vel_start + local_vel_idx - 1;
-
-  % Get detected values
-  R_detected = range_axis_display(global_range_idx);
-  v_detected = velocity_axis_display(global_vel_idx);
-
-  detected_targets(k).R = R_detected;
-  detected_targets(k).V = v_detected;
+  global_r = range_start + local_r - 1;
+  global_v = vel_start   + local_v - 1;
+  % Store detected parameters
+  detected_targets(k).R = range_axis_display(global_r);
+  detected_targets(k).V = velocity_axis_display(global_v);
   detected_targets(k).magnitude = max_val;
 end

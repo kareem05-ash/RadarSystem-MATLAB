@@ -8,14 +8,12 @@
 window_2d_range = hamming(Nfast);
 window_2d_doppler = hamming(N);
 window_2d = window_2d_range .* window_2d_doppler';
-
 % Apply windowing
 rx_windowed = rx_sig .* window_2d;
-
-% Range FFT (along fast-time dimension)
+% Range FFT Fast-Axis
 range_fft_2d = fft(rx_windowed, Nfast, 1);
 
-% Doppler FFT (along slow-time dimension) with fftshift
+% Doppler FFT Slow-Axis
 doppler_fft_2d = fft(range_fft_2d, N, 2);
 rd_matrix = fftshift(doppler_fft_2d, 2);
 rd_mag = abs(rd_matrix);
@@ -29,7 +27,7 @@ velocity_bins = -N/2:N/2-1;
 velocity_axis = velocity_bins * (lambda * PRF) / (2 * N);
 
 % Limit to reasonable ranges for display
-range_max_display = 100;  % meters
+range_max_display = 250;  % meters
 velocity_max_display = 100;  % m/s
 
 % Find indices for display limits

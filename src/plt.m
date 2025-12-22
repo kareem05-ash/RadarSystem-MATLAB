@@ -3,27 +3,25 @@
 %  github.com/kareem05-ash
 
 %% =========================================================================
-%% 8. Plot All Required Signals 
+%% 8. Plot All Required Signals
 %% =========================================================================
 
-
-zoom_samples = 1:min(500, length(t_fast));  % First 500 samples
-
 %% 1. TX Signal
+t_fast_plt = 0 : Ts : Tch;
 figure("Name", "TX");
-plot(t_fast(zoom_samples)*1e6, real(tx_chirp(zoom_samples)), 'b', 'LineWidth', 1.5);
+plot(t_fast_plt*1e6, real(tx_chirp_plt), 'b', 'LineWidth', 1.5);
 xlabel('Time (μs)');
 ylabel('Amplitude');
 title('TX FMCW Chirp (Real Part)');
 grid on;
 
-%% 2. RX Signal
-rx_first_chirp = rx_sig(:, 1);
+%% 2. RX Signal (Delayed TX)
+zoom_samples = 1:min(20000, length(t_fast));
 figure("Name", "RX");
-plot(t_fast(zoom_samples)*1e6, real(rx_first_chirp(zoom_samples)), 'b', 'LineWidth', 1.5);
+plot(t_fast(zoom_samples)*1e6, real(rx_chirp_plot(zoom_samples)), 'b', 'LineWidth', 1.5);
 xlabel('Time (μs)');
 ylabel('Amplitude');
-title('RX FMCW Chirp (Real Part)');
+title('RX FMCW Chirp (Real Part - Delayed TX)');
 grid on;
 
 %% 3. Fast-Axis FFT (Range Profile)
@@ -33,7 +31,7 @@ xlabel("Range (m)");
 ylabel("Magnitude");
 title("Fast-Axis FFT (Range Domain)");
 grid on;
-xlim([0, 100]);
+xlim([0, 250]);
 
 % Mark peaks
 hold on;
@@ -86,6 +84,7 @@ imagesc(velocity_axis_display, range_axis_display, 20*log10(rd_mag_display + eps
 xlabel('Velocity (m/s)');
 ylabel('Range (m)');
 title('Range-Velocity Diagram (Range-Doppler Map)');
+ylim([0, max(range_axis_display)]);
 colorbar;
 axis xy;
 colormap('jet');
@@ -96,7 +95,7 @@ hold on;
 for k = 1:length(target)
   % Expected (red x)
   plot(target(k).V, target(k).R, 'rx', 'MarkerSize', 12, 'LineWidth', 2);
-  
+
   % Detected (yellow circle)
   if k <= length(detected_targets)
     plot(detected_targets(k).V, detected_targets(k).R, 'yo', ...
@@ -112,32 +111,21 @@ grid on;
 
 %% 6. Print Results
 fprintf('\n========== DETECTION RESULTS ==========\n');
+fprintf('\nRange-Velocity Map Detection:\n');
 
-fprintf('\nFast-Axis FFT (Range):\n');
-for i = 1:min(2, length(peak_indices))
-  R_det = R_fft_half(peak_indices(i));
-  fprintf('  Peak %d: R=%.1f m (expected %.1f m), Error=%.2f m\n', ...
-    i, R_det, target(i).R, abs(R_det - target(i).R));
-end
-
-fprintf('\nSlow-Axis FFT (Velocity):\n');
-for i = 1:min(2, length(doppler_indices))
-  v_det = velocity(doppler_indices(i));
-  fprintf('  Peak %d: V=%.1f m/s (expected %.1f m/s), Error=%.2f m/s\n', ...
-    i, v_det, target(i).V, abs(v_det - target(i).V));
-end
-
-fprintf('\nRange-Velocity Map:\n');
-for k = 1:min(length(target), length(detected_targets))
-  fprintf('  Target %d: R=%.1f m, V=%.1f m/s\n', ...
-    k, detected_targets(k).R, detected_targets(k).V);
-  fprintf('    Errors: ΔR=%.2f m, ΔV=%.2f m/s\n', ...
+for k = 1:length(detected_targets)
+  fprintf('  Target %d:\n', k);
+  fprintf('    Detected  R = %.2f m,  V = %.2f m/s\n', ...
+    detected_targets(k).R, detected_targets(k).V);
+  fprintf('    Expected  R = %.2f m,  V = %.2f m/s\n', ...
+    target(k).R, target(k).V);
+  fprintf('    Errors:   ΔR = %.3f m, ΔV = %.3f m/s\n', ...
     abs(detected_targets(k).R - target(k).R), ...
     abs(detected_targets(k).V - target(k).V));
 end
 
 fprintf('\n========== SUMMARY ==========\n');
-fprintf('Range Resolution: %.3f m\n', dR);
-fprintf('Velocity Resolution: %.3f m/s\n', dV);
-fprintf('Max Range: %.1f m\n', Rmax);
-fprintf('Max Velocity: %.1f m/s\n', Vmax);
+fprintf('Range Resolution    : %.3f m\n', dR);
+fprintf('Velocity Resolution : %.3f m/s\n', dV);
+fprintf('Max Range           : %.1f m\n', Rmax);
+fprintf('Max Velocity        : %.1f m/s\n', Vmax);

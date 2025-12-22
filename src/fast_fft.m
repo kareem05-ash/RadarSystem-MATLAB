@@ -5,7 +5,6 @@
 %% =========================================================================
 %% 4. Fast-Axis FFT (Fbeat detection)
 %% =========================================================================
-
 first_chirp = rx_sig(:, 1);     % Taking only the firts column
 window_range = hamming(Nfast);
 windowed_chirp = first_chirp .* window_range;
